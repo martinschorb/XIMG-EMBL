@@ -78,7 +78,7 @@ parser.add_argument('-d', '--distance',# type=float,nargs='+',
                     default=[6.1, 6.5, 7.1, 8] , help='detector distance (cm)')
 
 parser.add_argument('-o', '--output', '--folder_result', type=str, 
-                    help='Output directory)')
+                    help='Output directory')
 
 parser.add_argument('-px', '--pixel', type=float,
                     default=0.1625 * 1e-6 , help='pixel size (default: 162.5 nm)')
@@ -112,7 +112,7 @@ N_start = args.Nstart                                                           
 N_finish = args.Nend                                                                # index of the last file
 
 pixel = args.pixel                                                       # pixel size 
-distances = np.array(args.distance) * 1e-2              # distances of your measurements 
+distance = np.array(args.distance) * 1e-2              # distances of your measurements 
 energy = 18                                                                    # photon energy in keV
 beta_delta = args.beta_delta
 zero_compensation = 0.05
@@ -131,8 +131,8 @@ else:
 # select custom ROIs
 ROI = args.ROI
 
-N_distances = len(distances)                                                # number of distances in phase-retrieval
-
+N_distances = len(distance)                                                # number of distances in phase-retrieval
+distances = list(range(1,N_distances+1))
 
 # =============================================================================
 #    prepartion work 
@@ -144,7 +144,7 @@ time1 = time.time()
 
 #calculate parameters for phase-retrieval
 wavelength = var.wavelen(energy)
-fresnelN = pixel**2/(wavelength*distances)
+fresnelN = pixel**2/(wavelength*distance)
 
 #create save folder if it doesn't exist
 if not os.path.exists(folder_result):
@@ -399,7 +399,7 @@ with open(folder_param + data_name + '_parameters.txt', 'w') as f:
     f.write("data_path = %s\n" % folder)
     f.write("ROI =  %s\n" % str(ROI))
     f.write("pixel size = %s\n" %str(pixel))
-    f.write("distances = %s\n" %str(distances))
+    f.write("distances = %s\n" %str(distance))
     f.write("energy = %s\n" %str(energy))
     f.write("beta_delta = %s\n" %str(beta_delta))
     f.write("fresnel Number = %s\n" %str(fresnelN))
