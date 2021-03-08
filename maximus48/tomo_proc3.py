@@ -5,11 +5,11 @@ Created on Thu Nov 21 16:23:15 2019
 
 @author: mpolikarpov
 """
-import os
+# import os
 import sys
-os.environ['OMP_NUM_THREADS'] ='1'
-os.environ['OPENBLAS_NUM_THREADS'] = '1'
-os.environ['MKL_NUM_THREADS'] = '1'
+# os.environ['OMP_NUM_THREADS'] ='1'
+# os.environ['OPENBLAS_NUM_THREADS'] = '1'
+# os.environ['MKL_NUM_THREADS'] = '1'
 
 from maximus48 import var
 import tomopy

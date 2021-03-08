@@ -134,6 +134,8 @@ ROI = args.ROI
 N_distances = len(distance)                                                # number of distances in phase-retrieval
 distances = list(range(1,N_distances+1))
 
+    
+
 # =============================================================================
 #    prepartion work 
 # =============================================================================
@@ -261,8 +263,8 @@ def read_flat(j):
     
     #save to memory
     proj_loc[j] = filt    
-    #print('sucessfully processed file: ', images[0][j + N_start-1])                                   # unpad images from the top
-        
+    print('sucessfully processed file: ', images[0][j + N_start-1])                                   # unpad images from the top
+    print('time for file: ', time.time()-time1)    
 
 # =============================================================================
 # Process projections
@@ -272,6 +274,7 @@ def read_flat(j):
 time1 = time.time()
 with closing(Pool(cp_count, initializer = init)) as pool:    
     pool.map(read_flat, np.arange(Pro.N_files))
+
 print('time for ff+shifts: ', time.time()-time1)
 
 proj = tonumpyarray(proj.shared_array_base, proj.shape, proj.dtype)
@@ -295,7 +298,7 @@ gc.collect()
 # =============================================================================
 
 # scan the original array to find the inclination
-cent, inclination = rotscan(proj, N_steps)
+#cent, inclination = rotscan(proj, N_steps)
 
 #rotate array to compensate for the tilt
 proj = rotate(proj, inclination, mode='nearest', axes=(2,1))
@@ -329,7 +332,7 @@ angle = np.pi*np.arange(n)/(N_steps*180)
 
 time1 = time.time()
 outs = tomopy.recon(proj, angle, center = cent, algorithm = 'gridrec', filter_name = 'shepp')
-print('time for tomo_recon ', time.time()-time1)
+#print('time for tomo_recon ', time.time()-time1)
 
 #crop
 outs = outs[:,Pro.Npad : outs.shape[1]- Pro.Npad,Pro.Npad : outs.shape[2]- Pro.Npad]
@@ -412,6 +415,7 @@ with open(folder_param + data_name + '_parameters.txt', 'w') as f:
     
     
     
+
 
 
 

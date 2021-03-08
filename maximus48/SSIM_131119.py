@@ -14,10 +14,10 @@ https://www.pyimagesearch.com/2014/09/15/python-compare-two-images/
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import os
-os.environ['OMP_NUM_THREADS'] ='1'
-os.environ['OPENBLAS_NUM_THREADS'] = '1'
-os.environ['MKL_NUM_THREADS'] = '1'
+# import os
+# os.environ['OMP_NUM_THREADS'] ='1'
+# os.environ['OPENBLAS_NUM_THREADS'] = '1'
+# os.environ['MKL_NUM_THREADS'] = '1'
 
 import numpy as np
 from numpy import sqrt, square 
