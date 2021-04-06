@@ -77,10 +77,16 @@ def rotaxis_rough(proj, N_steps = 10):
         
                 
     cent = []
-    N_rot = proj.shape[0] - 180 * N_steps
+    
+    correction = 180 * N_steps
+    
+    if proj.shape[0] < correction:
+        correction = 0
+    
+    N_rot = proj.shape[0] - correction
     
     for i in range(N_rot):
-        distances = shift(proj[i, a:b, c:d], np.flip(proj[i + N_steps*180, a:b, c:d] ,1))
+        distances = shift(proj[i, a:b, c:d], np.flip(proj[i + correction, a:b, c:d] ,1))
         cent.append(proj[i].shape[1]/2 + distances[1]/2)
     
     return cent
@@ -112,7 +118,7 @@ def rotaxis_rough_filt(proj, N_steps = 10, sigma = 5, accuracy = 10):
 
     
 
-def rotaxis_precise(projections, rotaxis_scan_interval, rot_step = 10, crop_ratio = 2, downscale = 0.25):
+def rotaxis_precise(projections, rotaxis_scan_interval, rot_step = 10, crop_ratio = 2, downscale = 0.25, ncore = None, nchunk = None):
     """
     This function calculates tomo-reconstructions and tells you 
     which tomo-slice is the sharpest one
@@ -140,6 +146,7 @@ def rotaxis_precise(projections, rotaxis_scan_interval, rot_step = 10, crop_rati
         1dim: standard deviation (contrast) of the tomo-image at this rotaxis
                 higher std means better sharpness
     """
+    
             
     # calculate angles
     n = projections.shape[0]
@@ -157,7 +164,7 @@ def rotaxis_precise(projections, rotaxis_scan_interval, rot_step = 10, crop_rati
       
         # make the reconsturction
         image = tomopy.recon(projections, angle, center = i, 
-                             algorithm = 'gridrec', filter_name = 'shepp')[0]
+                             algorithm = 'gridrec', filter_name = 'shepp',ncore = ncore, nchunk = nchunk)[0]
         
         # crop squared tomo-reconstructio so you use only the ROI with a sample.
         a = int(image.shape[0] * (crop_ratio-1)/(2*crop_ratio))
@@ -176,7 +183,7 @@ def rotaxis_precise(projections, rotaxis_scan_interval, rot_step = 10, crop_rati
 
 
 
-def rotaxis_scan(projections, N_slice = 1000, rot_step = 10):
+def rotaxis_scan(projections, N_slice = 1000, rot_step = 10, ncore = None, nchunk = None):
     """
     The function combines rotaxis_rough() and rotaxis_precise()
     It does three iterations to find the best match for the rotation axis
@@ -201,17 +208,17 @@ def rotaxis_scan(projections, N_slice = 1000, rot_step = 10):
 
     # first iteration
     opa = rotaxis_precise(projections[:,N_slice:N_slice+1], 
-                          np.arange(cent - 100, cent + 100, 5), rot_step)
+                          np.arange(cent - 100, cent + 100, 5), rot_step,ncore = ncore, nchunk = nchunk)
     cent = opa[0, np.argmax(opa[1])]
 
     # second iteration
     opa = rotaxis_precise(projections[:,N_slice:N_slice+1],
-                          np.arange(cent - 5, cent + 5, 1), rot_step)
+                          np.arange(cent - 5, cent + 5, 1), rot_step, ncore = ncore, nchunk = nchunk)
     cent = opa[0, np.argmax(opa[1])]
     
     # third iteration
     opa = rotaxis_precise(projections[:,N_slice:N_slice+1],
-                          np.arange(cent - 2, cent + 2, 0.1), rot_step)
+                          np.arange(cent - 2, cent + 2, 0.1), rot_step, ncore = ncore, nchunk = nchunk)
     cent = opa[0, np.argmax(opa[1])]
     
     #final fit
@@ -221,7 +228,7 @@ def rotaxis_scan(projections, N_slice = 1000, rot_step = 10):
     return cent
 
 
-def rotscan(proj, N_steps, slice_mode = False):
+def rotscan(proj, N_steps, slice_mode = False, ncore = None, nchunk = None):
     """
     The function combines rotaxis_rough() and rotaxis_precise()
     It does three iterations to find the best match for the rotation axis
@@ -241,6 +248,9 @@ def rotscan(proj, N_steps, slice_mode = False):
         center of rotation
     """
     
+        
+    
+    
     ### rough rotaxis scan
     cent = rotaxis_rough(proj, N_steps)
     cent = np.median(cent)
@@ -248,23 +258,23 @@ def rotscan(proj, N_steps, slice_mode = False):
     ### fine rotaxis scan (optional, only if 360 deg projections)
     # Note: you schould use only the region with a sample. 
     #The noisy region with no data will introduce errors
-    list_to_scan = (proj.shape[1]//8, proj.shape[1]//4, proj.shape[1]//2,
-                  3*proj.shape[1]//4, 7*proj.shape[1]//8)
+    list_to_scan = (proj.shape[1]*np.array([1,2,4,6,7])/8).astype(int)
+    
     rotslice = []
 
     for i, sliceN in enumerate(list_to_scan):
         cent_iter = cent
         for scan_step in (10,2):
-            calc = rotaxis_precise(proj[:,sliceN:sliceN+1],
+            calc = rotaxis_precise(proj[sliceN:sliceN+1,:],
                                np.arange(cent_iter - scan_step, cent_iter + scan_step, scan_step/10), 
-                               N_steps)
+                               N_steps,ncore = ncore, nchunk = nchunk)
             cent_iter = calc[0, np.argmax(calc[1])]
         rotslice.append(cent_iter)
    
     # calculate tilt of the rotation axis
     # counter-clockwise rotation of the rotaxis => positive angles
     pfit = np.polyfit(list_to_scan, rotslice, 1)
-    inclination = (-np.arctan(pfit[0]*180/np.pi))
+    # inclination = (-np.arctan(pfit[0]*180/np.pi))
     
     if slice_mode:
         # build new coordination axis
@@ -273,7 +283,7 @@ def rotscan(proj, N_steps, slice_mode = False):
     else:
         cent = np.median(rotslice)
     
-    return (cent, inclination)
+    return cent#, inclination)
 
 
 

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Fri Mar  5 08:36:44 2021
+Created on Fri Nov 22 16:34:02 2019
 
-@author: schorb
+@author: mpolikarpov
+
 """
-
 import os
 # os.environ['OMP_NUM_THREADS'] ='1'
 # os.environ['OPENBLAS_NUM_THREADS'] = '1'
@@ -31,111 +31,34 @@ from maximus48 import FSC
 from pybdv import make_bdv 
 
 
-import argparse
-
-
-# enable comma-separated inputs or strings representing lists/tuples to be parsed as list
-
-def splitarglist(args,argnames,sep=',',outtype=float):    
-    
-    if type(argnames) is str:
-        argnames = [argnames]         
-        
-    d = vars(args)
-    
-    for argname in argnames:
-        if argname in d.keys():
-            if type(d[argname]) is str:
-                outlist = list(map(outtype,[s.strip('()[]') for s in d[argname].split(sep)]))
-            
-                setattr(args,argname,outlist)
-
-
-
-
-parser = argparse.ArgumentParser(description='Process Xray tomograms.')
-
-# ==========   required arguments ============
-
-
-parser.add_argument('-n', '--name', '--data_name', type=str, 
-                    required=True, help='Dataset name (file prefix)')
-
-parser.add_argument('-i', '--input', '--folder', dest='folder',type=str, 
-                    required=True, help='Dataset directory)')
-
-
-# ==========   optional arguments =============
-
-
-parser.add_argument('-bd', '--beta_delta', type=float,
-                    default=0.17 , help='beta_delta (default: 0.17)')
-
-parser.add_argument('-c', '--n_cpu', type=int,
-                    default=32, help='number of CPUs used (default: 32)')
-
-parser.add_argument('-d', '--distance',# type=float,nargs='+',
-                    default=[6.1, 6.5, 7.1, 8] , help='detector distance (cm)')
-
-parser.add_argument('-o', '--output', '--folder_result', type=str, 
-                    help='Output directory')
-
-parser.add_argument('-px', '--pixel', type=float,
-                    default=0.1625 * 1e-6 , help='pixel size (default: 162.5 nm)')
-
-parser.add_argument('-r', '--ROI', #type=float,
-                    default=[0,100,2048,2048] , help='ROI (default: 0,100,2048,2048)')
-
-
-
-parser.add_argument('--Nsteps', type=int,
-                    default=10 , help='number of steps')
-parser.add_argument('--Nstart', type=int,
-                    default=1 , help='Starting tilt')
-parser.add_argument('--Nend'  , type=int,
-                    default=3600 , help='End tilt')
-
-
-
-args = parser.parse_args()
-
-splitarglist(args, 'distance')
-
-
-
-
-
+#import matplotlib.pyplot as plt
+#from maximus48 import monochromaticCTF as CTF 
+#import h5py
+#from maximus48.tomo_proc3 import axis_raws, interpolate
 
 
 # =============================================================================
 #           parameters for phase retrieval with CTF
 # =============================================================================
-N_steps = args.Nsteps                                                                   # Number of projections per degree
-N_start = args.Nstart                                                                  # index of the first file
-N_finish = args.Nend                                                                # index of the last file
+N_steps = 10                                                                   # Number of projections per degree
+N_start = 1                                                                    # index of the first file
+N_finish = 3600                                                                # index of the last file
 
-pixel = args.pixel                                                       # pixel size 
-distance = np.array(args.distance) * 1e-2              # distances of your measurements 
+pixel = 0.1625 * 1e-6                                                          # pixel size 
+distance = np.array((6.1, 6.5, 7.1, 8), dtype = 'float32') * 1e-2              # distances of your measurements 
 energy = 18                                                                    # photon energy in keV
-beta_delta = args.beta_delta
+beta_delta = 0.15
 zero_compensation = 0.05
+ROI = (0,100,2048,2048)                                                        # ROI of the image to be read (x,y,x1,y1 at the image - inverse to numpy!)
+cp_count = 32                                                                  # number of cores for multiprocessing
+inclination = -0.23                                                            # angle to compansate the tilt of the rotaxis
 
-cp_count = args.n_cpu                                                                  # number of cores for multiprocessing
-inclination = -0.23                                                          # angle to compansate the tilt of the rotaxis
-
-data_name = args.name
-folder = args.folder
-
-if 'folder_result' in dir(args):
-    folder_result = args.folder_result
-else:
-    folder_result = os.path.join(folder,'rec') 
-                                                              
-# select custom ROIs
-ROI = args.ROI
-
-N_distances = len(distance)                                                # number of distances in phase-retrieval
-distances = list(range(1,N_distances+1))
+#data_name = 'ew21_5'
+data_name = 'Platy-12601'
+folder = '/g/emcf/schorb/data/HH_platy/raw/'
+folder_result = '/g/emcf/schorb/data/HH_platy/rec'
+distances = (1,2,3,4)
+N_distances  = 4                                                               # number of distances in phase-retrieval
 
 
 # =============================================================================
@@ -187,7 +110,7 @@ shifts = F(shape = (N_finish - N_start, N_distances, 2), dtype = 'd')
 #allocate memory to store filtered files
 proj = F(shape = (Pro.N_files, shape_ff[2], shape_ff[3] + 2*Pro.Npad), dtype = 'd' )
 
-print('finished calculation of ff-constants and memory allocation in ', time.time()-time1)
+#print('finished calculation of ff-constants and memory allocation in ', time.time()-time1)
 
 
 
@@ -265,8 +188,8 @@ def read_flat(j):
     
     #save to memory
     proj_loc[j] = filt    
-    print('sucessfully processed file: ', images[0][j + N_start-1])                                   # unpad images from the top
-    print('time for file: ', time.time()-time1)    
+    #print('sucessfully processed file: ', images[0][j + N_start-1])                                   # unpad images from the top
+        
 
 # =============================================================================
 # Process projections
@@ -276,15 +199,14 @@ def read_flat(j):
 time1 = time.time()
 with closing(Pool(cp_count, initializer = init)) as pool:    
     pool.map(read_flat, np.arange(Pro.N_files))
-
-print('time for ff+shifts: ', time.time()-time1)
+#print('time for ff+shifts: ', time.time()-time1)
 
 proj = tonumpyarray(proj.shared_array_base, proj.shape, proj.dtype)
 
 #remove vertical stripes with wavelet-fourier filtering
 time1 = time.time()            
 proj = tomopy.prep.stripe.remove_stripe_fw(proj,level=3, wname=u'db25', sigma=2, pad = False)
-print('time for stripe removal ', time.time()-time1)
+#print('time for stripe removal ', time.time()-time1)
 
 
 ff = None
@@ -417,7 +339,6 @@ with open(folder_param + data_name + '_parameters.txt', 'w') as f:
     
     
     
-
 
 
 
