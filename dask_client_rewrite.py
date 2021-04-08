@@ -49,7 +49,7 @@ from dask_jobqueue import SLURMCluster
 
 
 
-client = Client('10.11.12.87:33180')
+client = Client('10.11.12.87:46558')
 
 #%%
 
@@ -76,10 +76,10 @@ inclination = -0.23                                                            #
 
 #data_name = 'ew21_5'
 data_name = 'Platy-12601'
-folder_base = '/g/emcf/schorb/data/HH_platy'
-folder = os.path.join(folder_base,'raw')
-folder_temp = os.path.join(folder_base,'tmp')
-folder_result = os.path.join(folder_base,'rec')
+folder_base = '/scratch/schorb/HH_platy'
+folder = os.path.join(folder_base,'raw/')
+folder_temp = os.path.join(folder_base,'tmp/')
+folder_result = os.path.join(folder_base,'rec/')
 distances = (1,2,3,4)
 N_distances  = 4  
 
@@ -267,4 +267,5 @@ for i in np.arange(N_distances):
 
 
 
+#read_flat(j, images=images, ROI_ff=ROI_ff, ROI=ROI,flats=flats,distances=distances,ff_con=ff_con, N_start=N_start, Npad=Npad)
 
