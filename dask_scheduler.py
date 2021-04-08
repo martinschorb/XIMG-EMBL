@@ -43,5 +43,8 @@ ca = cluster.adapt(
     # scale_factor=1.0  # prevent from scaling up because of CPU or MEM need
 )
 
-sec = input('wait for user input.\n')
+
+print('Dask cluster scheduler running at '+cluster.scheduler_address+'\n\n\n')
+
+sec = input('Type any input to stop the scheduler.\n')
 

@@ -49,7 +49,7 @@ from dask_jobqueue import SLURMCluster
 
 
 
-client = Client('10.11.12.87:34117')
+client = Client('10.11.12.87:33180')
 
 #%%
 
@@ -112,6 +112,44 @@ if not os.path.exists(folder_result):
             
             
 Npad = init_Npad(ROI, compression = 8)
+
+
+#%%
+
+
+# =============================
+
+
+# RUN  SCRIPT
+
+# =============================
+
+
+images, flats = init_paths(data_name, folder, distances)
+
+im_shape = (ROI[3]-ROI[1], ROI[2]-ROI[0])
+
+shape_ff = (N_distances, len(flats[0]), im_shape[0], im_shape[1])
+ff_shared = F(shape = shape_ff, dtype = 'd')
+
+
+#read ff-files to memory
+
+ff = np.zeros(shape_ff)
+
+for i in range(N_distances):
+    for j,fname in enumerate(flats[i]):
+        ff[i][j]=imread(fname)[ROI[1]:ROI[3], ROI[0]:ROI[2]]
+        
+
+
+#calculate ff-related constants
+ROI_ff = (ff.shape[3]//4, ff.shape[2]//4,3 * ff.shape[3]//4, 3 * ff.shape[2]//4)    # make ROI for further flatfield and shift corrections, same logic as for normal ROI
+ff_con = np.zeros(N_distances, 'object')                                                # array of classes to store flatfield-related constants
+for i in np.arange(N_distances):    
+    ff_con[i] = SSIM_const(ff[i][:,ROI_ff[1]:ROI_ff[3], 
+                                   ROI_ff[0]:ROI_ff[2]].transpose(1,2,0))
+
 
 
 #%%
@@ -229,42 +267,4 @@ def read_flat(j, images=images, ROI_ff=ROI_ff, ROI=ROI,flats=flats,distances=dis
 
 
 
-
-
-
-#%%
-
-
-# =============================
-
-
-# RUN  SCRIPT
-
-# =============================
-
-
-images, flats = init_paths(data_name, folder, distances)
-
-im_shape = (ROI[3]-ROI[1], ROI[2]-ROI[0])
-
-shape_ff = (N_distances, len(flats[0]), im_shape[0], im_shape[1])
-ff_shared = F(shape = shape_ff, dtype = 'd')
-
-
-#read ff-files to memory
-
-ff = np.zeros(shape_ff)
-
-for i in range(N_distances):
-    for j,fname in enumerate(flats[i]):
-        ff[i][j]=imread(fname)[ROI[1]:ROI[3], ROI[0]:ROI[2]]
-        
-
-
-#calculate ff-related constants
-ROI_ff = (ff.shape[3]//4, ff.shape[2]//4,3 * ff.shape[3]//4, 3 * ff.shape[2]//4)    # make ROI for further flatfield and shift corrections, same logic as for normal ROI
-ff_con = np.zeros(N_distances, 'object')                                                # array of classes to store flatfield-related constants
-for i in np.arange(N_distances):    
-    ff_con[i] = SSIM_const(ff[i][:,ROI_ff[1]:ROI_ff[3], 
-                                   ROI_ff[0]:ROI_ff[2]].transpose(1,2,0))
 
