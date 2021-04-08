@@ -113,45 +113,6 @@ if not os.path.exists(folder_result):
             
 Npad = init_Npad(ROI, compression = 8)
 
-
-#%%
-
-
-# =============================
-
-
-# RUN  SCRIPT
-
-# =============================
-
-
-images, flats = init_paths(data_name, folder, distances)
-
-im_shape = (ROI[3]-ROI[1], ROI[2]-ROI[0])
-
-shape_ff = (N_distances, len(flats[0]), im_shape[0], im_shape[1])
-ff_shared = F(shape = shape_ff, dtype = 'd')
-
-
-#read ff-files to memory
-
-ff = np.zeros(shape_ff)
-
-for i in range(N_distances):
-    for j,fname in enumerate(flats[i]):
-        ff[i][j]=imread(fname)[ROI[1]:ROI[3], ROI[0]:ROI[2]]
-        
-
-
-#calculate ff-related constants
-ROI_ff = (ff.shape[3]//4, ff.shape[2]//4,3 * ff.shape[3]//4, 3 * ff.shape[2]//4)    # make ROI for further flatfield and shift corrections, same logic as for normal ROI
-ff_con = np.zeros(N_distances, 'object')                                                # array of classes to store flatfield-related constants
-for i in np.arange(N_distances):    
-    ff_con[i] = SSIM_const(ff[i][:,ROI_ff[1]:ROI_ff[3], 
-                                   ROI_ff[0]:ROI_ff[2]].transpose(1,2,0))
-
-
-
 #%%
 
 # Support functions
@@ -209,7 +170,7 @@ def init_paths(data_name, path, distance_indexes):
 
 ## FLAT field correction
 
-def flat_correct(j,images=images,flats=flats,distances=distances,ff_con=ff_con):
+def flat_correct(j,images=[],flats=[],distances=(),ff_con=[]):
     filt = []
     for i in np.arange(len(images)):
         im = imread(images[i][j])[ROI[1]:ROI[3], ROI[0]:ROI[2]]
@@ -227,7 +188,7 @@ def flat_correct(j,images=images,flats=flats,distances=distances,ff_con=ff_con):
 
 
 
-def read_flat(j, images=images, ROI_ff=ROI_ff, ROI=ROI,flats=flats,distances=distances,ff_con=ff_con, N_start=N_start, Npad=Npad): 
+def read_flat(j, images=[], ROI_ff=[], ROI=[],flats=[],distances=(),ff_con=[], N_start=0, Npad=0): 
     
     """
     j: int
@@ -261,6 +222,45 @@ def read_flat(j, images=images, ROI_ff=ROI_ff, ROI=ROI,flats=flats,distances=dis
     # da.to_zarr(pda,'/scratch/schorb/HH_platy/Platy-12601_'+str(j)+'.zarr')
 
     # return filt0
+
+
+
+
+#%%
+
+
+# =============================
+
+
+# RUN  SCRIPT
+
+# =============================
+
+
+images, flats = init_paths(data_name, folder, distances)
+
+im_shape = (ROI[3]-ROI[1], ROI[2]-ROI[0])
+
+shape_ff = (N_distances, len(flats[0]), im_shape[0], im_shape[1])
+ff_shared = F(shape = shape_ff, dtype = 'd')
+
+
+#read ff-files to memory
+
+ff = np.zeros(shape_ff)
+
+for i in range(N_distances):
+    for j,fname in enumerate(flats[i]):
+        ff[i][j]=imread(fname)[ROI[1]:ROI[3], ROI[0]:ROI[2]]
+        
+
+
+#calculate ff-related constants
+ROI_ff = (ff.shape[3]//4, ff.shape[2]//4,3 * ff.shape[3]//4, 3 * ff.shape[2]//4)    # make ROI for further flatfield and shift corrections, same logic as for normal ROI
+ff_con = np.zeros(N_distances, 'object')                                                # array of classes to store flatfield-related constants
+for i in np.arange(N_distances):    
+    ff_con[i] = SSIM_const(ff[i][:,ROI_ff[1]:ROI_ff[3], 
+                                   ROI_ff[0]:ROI_ff[2]].transpose(1,2,0))
 
 
 
