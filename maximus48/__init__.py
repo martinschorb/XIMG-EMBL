@@ -16,13 +16,13 @@ from __future__ import (absolute_import, division, print_function,
 #from maximus48.SSIM_sf2 import divide
 #from maximus48.SSIM_sf import *
 
-from maximus48.var import *
-from maximus48.polar import *
-from maximus48.polar import polar_image
+# from maximus48.var import *
+# from maximus48.polar import *
+# from maximus48.polar import polar_image
 
-from maximus48.monochromaticCTF import single_distance_CTF
-from maximus48.multiCTF2 import *
-from maximus48.sidi_phare import Paganin, MBA, BAC, anka_filter
+# from maximus48.monochromaticCTF import single_distance_CTF
+# from maximus48.multiCTF2 import *
+# from maximus48.sidi_phare import Paganin, MBA, BAC, anka_filter
 
 
 

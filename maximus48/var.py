@@ -12,9 +12,9 @@ Created on Mon Aug  6 17:46:49 2018
 import os
 #from PIL import Image
 import numpy as np
-from numpy import mean, square, sqrt
+# from numpy import mean, square, sqrt
 from numpy.fft import fft2, fftshift
-from joblib import Parallel, delayed
+# from joblib import Parallel, delayed
 import skimage
 import scipy
 
@@ -45,21 +45,21 @@ def im_folder(path):
     
     
     
-def fourimage(image):
-    """
-    does inverse fourier transform and shows the image
+# def fourimage(image):
+#     """
+#     does inverse fourier transform and shows the image
     
-    Parameters
-    __________
-    data : ndarray 
-        input image data 2D or 3D array
-    bitnum: int 
-        number of bits to save. by default is 8 bit
-    """
-    ft = fft2(image)
-    out = np.log(abs(fftshift(ft)))
-    show(out)
-    return 
+#     Parameters
+#     __________
+#     data : ndarray 
+#         input image data 2D or 3D array
+#     bitnum: int 
+#         number of bits to save. by default is 8 bit
+#     """
+#     ft = fft2(image)
+#     out = np.log(abs(fftshift(ft)))
+#     show(out)
+#     return 
     
     
 def imrescale(data, bitnum=16):
