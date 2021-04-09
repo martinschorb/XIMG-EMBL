@@ -11,7 +11,7 @@ Created on Wed Apr  7 09:18:47 2021
 import numpy as np
 import os
 import sys
-
+import time
 
 
 from maximus48 import var
@@ -25,13 +25,12 @@ from skimage.io import imread, imsave
 
 # from pybdv import make_bdv 
 
-# import dask
+from dask import delayed
 # import dask.array as da
-from skimage.io import imread,imsave
 
 from dask.distributed import Client, progress
 
-from dask_jobqueue import SLURMCluster
+# from dask_jobqueue import SLURMCluster
 
 
 
@@ -49,7 +48,7 @@ from dask_jobqueue import SLURMCluster
 
 
 
-client = Client('10.11.12.87:46558')
+# client = Client('10.11.12.87:38880')
 
 #%%
 
@@ -165,21 +164,7 @@ def init_paths(data_name, path, distance_indexes):
     return images,flats
 
 
-# =============================
 
-
-## FLAT field correction
-
-def flat_correct(j,images=[],flats=[],distances=(),ff_con=[]):
-    filt = []
-    for i in np.arange(len(images)):
-        im = imread(images[i][j])[ROI[1]:ROI[3], ROI[0]:ROI[2]]
-        maxcorridx=np.argmax(SSIM_sf.SSIM(SSIM_const(im[ROI_ff[1]:ROI_ff[3], ROI_ff[0]:ROI_ff[2]]), 
-                                        ff_con[i]).ssim())
-        
-        filt.append(im/ff[i][maxcorridx])
-    
-    return filt
 
 # =============================
 
@@ -188,40 +173,63 @@ def flat_correct(j,images=[],flats=[],distances=(),ff_con=[]):
 
 
 
-def read_flat(j, images=[], ROI_ff=[], ROI=[],flats=[],distances=(),ff_con=[], N_start=0, Npad=0): 
-    
+
+
+def read_flat(j,images=[], ROI_ff=[], ROI=[],flats=[],ff_file='',ffcon_file='',distances=(), N_start=0, Npad=0):
     """
     j: int
         an index of the file that should be processed 
     Please note, j always starts from zero
     To open correct file, images array uses images[i][j + N_start-1]
     """
+    
+        
+        
+    ff_con = np.load(ffcon_file,allow_pickle=True)
+    
+    ff = np.load(ff_file,allow_pickle=True)
+   
+    #read image and do ff-retrieval 
+    
+    # =============================
+
+
+    
+    ## FLAT field correction
+    
+    
+    filt = []
+    
+    for i in np.arange(len(images)):
+        im = imread(images[i][j])[ROI[1]:ROI[3], ROI[0]:ROI[2]]
      
-    #read image and do ff-retrieval    
-    filt = flat_correct(j,images=images,flats=flats,distances=distances,ff_con=ff_con)
-    
-    im_gau0 = var.filt_gauss_laplace(filt[0][ROI_ff[1]:ROI_ff[3], ROI_ff[0]:ROI_ff[2]],
-                                    sigma = 5)
-    thisshift = []
-    
-    for i in range(len(filt)):
-        im_gau1 = var.filt_gauss_laplace(filt[i][ROI_ff[1]:ROI_ff[3], ROI_ff[0]:ROI_ff[2]],
-                                    sigma = 5)
-        thisshift.append(var.shift_distance(im_gau0, im_gau1, 10))
-    
-    
-    filt0 = multiCTF.shift_imageset(filt, thisshift)
+        maxcorridx=np.argmax(SSIM_sf.SSIM(SSIM_const(im[ROI_ff[1]:ROI_ff[3], ROI_ff[0]:ROI_ff[2]]),ff_con[i]).ssim())        
+        filt.append(im/ff[i][maxcorridx])
 
-    filt0 = np.pad(filt0, ((0,0),(Npad, Npad),(Npad, Npad)), 'edge')               # padding with border values
-    filt0 = multiCTF.multi_distance_CTF(filt0, beta_delta, 
-                                          fresnelN, zero_compensation)
-    filt0 = filt0[Npad:(filt0.shape[0]-Npad),:]
+        
+        
+    # im_gau0 = var.filt_gauss_laplace(filt[0][ROI_ff[1]:ROI_ff[3], ROI_ff[0]:ROI_ff[2]],
+    #                                 sigma = 5)
+    # thisshift = []
+    
+    # for i in range(len(filt)):
+    #     im_gau1 = var.filt_gauss_laplace(filt[i][ROI_ff[1]:ROI_ff[3], ROI_ff[0]:ROI_ff[2]],
+    #                                 sigma = 5)
+    #     thisshift.append(var.shift_distance(im_gau0, im_gau1, 10))
+    
+    
+    # filt0 = multiCTF.shift_imageset(filt, thisshift)
 
-    imsave(os.path.join(folder_temp,''.join(os.path.basename(images[0][j]).partition('_'+str(distances[0]))[0:3:2])))
+    # filt0 = np.pad(filt0, ((0,0),(Npad, Npad),(Npad, Npad)), 'edge')               # padding with border values
+    # filt0 = multiCTF.multi_distance_CTF(filt0, beta_delta, 
+    #                                       fresnelN, zero_compensation)
+    # filt0 = filt0[Npad:(filt0.shape[0]-Npad),:]
+
+    imsave(os.path.join(folder_temp,''.join(os.path.basename(images[0][j]).partition('_'+str(distances[0]))[0:3:2])),filt[0])
     # pda = da.from_array(filt0)
     # da.to_zarr(pda,'/scratch/schorb/HH_platy/Platy-12601_'+str(j)+'.zarr')
 
-    # return filt0
+    return 'done processing image '+str(j)
 
 
 
@@ -257,15 +265,43 @@ for i in range(N_distances):
 
 #calculate ff-related constants
 ROI_ff = (ff.shape[3]//4, ff.shape[2]//4,3 * ff.shape[3]//4, 3 * ff.shape[2]//4)    # make ROI for further flatfield and shift corrections, same logic as for normal ROI
+
+
 ff_con = np.zeros(N_distances, 'object')                                                # array of classes to store flatfield-related constants
 for i in np.arange(N_distances):    
     ff_con[i] = SSIM_const(ff[i][:,ROI_ff[1]:ROI_ff[3], 
-                                   ROI_ff[0]:ROI_ff[2]].transpose(1,2,0))
+                                    ROI_ff[0]:ROI_ff[2]].transpose(1,2,0))
+
+ffcon_file = folder_temp+'ffcon.npy'
+np.save(ffcon_file,ff_con)
 
 
 
+ff_file = folder_temp+'ff.npy'
+np.save(ff_file,ff)
+
+
+#read_flat(j,images=images, ROI_ff=ROI_ff, ROI=ROI,flats=flats,distances=distances,ffcon_file=ffcon_file,ff_file=ff_file, N_start=N_start, Npad=Npad)
+
+#%%
+# s1=client.map....
+
+status = 'p'
+
+while status != 'done':
+    for st in s1:
+        
+        if st.status in ['error']:
+            print('retrying '+st.key)
+            
+            st.retry()
+            status = 'p'
+            time.sleep(1)
+        elif st.status in ['finished']:
+            status = 'done'
+    
+    
 
 
 
-#read_flat(j, images=images, ROI_ff=ROI_ff, ROI=ROI,flats=flats,distances=distances,ff_con=ff_con, N_start=N_start, Npad=Npad)
 
