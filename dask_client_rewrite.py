@@ -12,18 +12,22 @@ import numpy as np
 import os
 import sys
 import time
+import glob
+
+import gc
 
 
 from maximus48 import var
-from maximus48.tomo_proc3 import init_Npad, init_names_custom, F
+from maximus48.tomo_proc3 import init_Npad, init_names_custom, F,rotscan
 from maximus48 import SSIM_131119 as SSIM_sf 
 from maximus48.SSIM_131119 import SSIM_const
 from maximus48 import multiCTF2 as multiCTF
 
 
 from skimage.io import imread, imsave
+from scipy.ndimage import rotate
 
-# from pybdv import make_bdv 
+from pybdv import make_bdv 
 
 from dask import delayed
 # import dask.array as da
@@ -32,7 +36,7 @@ from dask.distributed import Client, progress
 
 # from dask_jobqueue import SLURMCluster
 
-
+import tomopy
 
 
 #%% 
@@ -208,24 +212,24 @@ def read_flat(j,images=[], ROI_ff=[], ROI=[],flats=[],ff_file='',ffcon_file='',d
 
         
         
-    # im_gau0 = var.filt_gauss_laplace(filt[0][ROI_ff[1]:ROI_ff[3], ROI_ff[0]:ROI_ff[2]],
-    #                                 sigma = 5)
-    # thisshift = []
+    im_gau0 = var.filt_gauss_laplace(filt[0][ROI_ff[1]:ROI_ff[3], ROI_ff[0]:ROI_ff[2]],
+                                    sigma = 5)
+    thisshift = []
     
-    # for i in range(len(filt)):
-    #     im_gau1 = var.filt_gauss_laplace(filt[i][ROI_ff[1]:ROI_ff[3], ROI_ff[0]:ROI_ff[2]],
-    #                                 sigma = 5)
-    #     thisshift.append(var.shift_distance(im_gau0, im_gau1, 10))
+    for i in range(len(filt)):
+        im_gau1 = var.filt_gauss_laplace(filt[i][ROI_ff[1]:ROI_ff[3], ROI_ff[0]:ROI_ff[2]],
+                                    sigma = 5)
+        thisshift.append(var.shift_distance(im_gau0, im_gau1, 10))
     
     
-    # filt0 = multiCTF.shift_imageset(filt, thisshift)
+    filt0 = multiCTF.shift_imageset(filt, thisshift)
 
-    # filt0 = np.pad(filt0, ((0,0),(Npad, Npad),(Npad, Npad)), 'edge')               # padding with border values
-    # filt0 = multiCTF.multi_distance_CTF(filt0, beta_delta, 
-    #                                       fresnelN, zero_compensation)
-    # filt0 = filt0[Npad:(filt0.shape[0]-Npad),:]
+    filt0 = np.pad(filt0, ((0,0),(Npad, Npad),(Npad, Npad)), 'edge')               # padding with border values
+    filt0 = multiCTF.multi_distance_CTF(filt0, beta_delta, 
+                                          fresnelN, zero_compensation)
+    filt0 = filt0[Npad:(filt0.shape[0]-Npad),:]
 
-    imsave(os.path.join(folder_temp,''.join(os.path.basename(images[0][j]).partition('_'+str(distances[0]))[0:3:2])),filt[0])
+    imsave(os.path.join(folder_temp,''.join(os.path.basename(images[0][j]).partition('_'+str(distances[0]))[0:3:2])),filt0)
     # pda = da.from_array(filt0)
     # da.to_zarr(pda,'/scratch/schorb/HH_platy/Platy-12601_'+str(j)+'.zarr')
 
@@ -302,6 +306,75 @@ while status != 'done':
     
     
 
+#%%
+
+import dask.array as da
+
+from dask.array.image import imread
+
+cp_count = 96
+
+def xtomo_recon(folder_temp):
+    
+    imfiles = sorted(glob.glob(folder_temp+'*.tiff'))
+    
+    im = imread(imfiles[0])
+    
+    proj = np.zeros((3600,im.shape[0],im.shape[1]))
+    
+    for idx,imf in enumerate(imfiles):proj[idx,:]=imread(imf)
+
+    proj = tomopy.prep.stripe.remove_stripe_fw(proj,level=3, wname=u'db25', sigma=2, pad = False,ncore=cp_count,nchunk=chunksz)
+
+    proj = rotate(proj, inclination, mode='nearest', axes=(2,1))
 
 
+    cent = rotscan(proj, N_steps,ncore=cp_count,nchunk=chunksz)
 
+    n = proj.shape[0]
+
+    angle = np.pi*np.arange(n)/(N_steps*180)
+
+    time1 = time.time()
+    outs = tomopy.recon(proj, angle, center = cent, algorithm = 'gridrec', filter_name = 'shepp',ncore=cp_count,nchunk=chunksz)
+    
+    outs = outs[:,Npad : outs.shape[1]- Npad,Npad : outs.shape[2]- Npad]
+    
+        
+    data = outs
+    data -= data.min()
+    data /= data.max()
+    data *= 32767
+    data = data.astype('int16')
+    outs = None
+
+    gc.collect()
+    
+    
+        
+    # set the factors for downscaling, for example 2 times isotropic downsampling by a factor of 2
+    scale_factors = [[2, 2, 2], [2, 2, 2], [2, 2, 2], [2, 2, 2], [2, 2, 2]] 
+    
+    # set the downsampling mode, 'mean' is good for image data, for binary data or labels
+    # use 'nearest' instead
+    mode = 'interpolate'
+    
+    # resolution of the data, set appropriately
+    resolution = [pixel*1e6 , pixel*1e6 , pixel*1e6] 
+    
+    #save big data format
+    folder_h5 = folder_result + 'bdv/'
+    
+    if not os.path.exists(folder_h5):
+        os.makedirs(folder_h5) 
+    
+    
+    # t=dask.delayed(make_bdv)(data, folder_h5 + data_name, downscale_factors=scale_factors,
+    #     ...:                  downscale_mode=mode, resolution=resolution,
+    #     ...:                  unit='micrometer', setup_name = data_name)    
+    
+    # AssertionError: daemonic processes are not allowed to have children
+    
+    make_bdv(data, folder_h5 + data_name, downscale_factors=scale_factors,
+                     downscale_mode=mode, resolution=resolution,
+                     unit='micrometer', setup_name = data_name,n_threads=cp_count) 
