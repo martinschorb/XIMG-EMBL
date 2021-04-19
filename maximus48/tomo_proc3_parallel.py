@@ -102,7 +102,7 @@ def rotaxis_rough(proj,i, N_steps = 10):
     return proj[i].shape[1]/2 + distances[1]/2 #cent
 
 
-def rotrough_compute(proj,i,a=0,b=0,c=0,d=0,sigma=1,accuracy=1,N_steps=1):
+def rotrough_compute(i,proj=[],a=0,b=0,c=0,d=0,sigma=1,accuracy=1,N_steps=1):
     
     # rotrough_compute(proj,i,a=a,b=b,c=c,d=d,sigma=sigma,accuracy=accuracy,N_steps=N_steps):
     
@@ -111,7 +111,7 @@ def rotrough_compute(proj,i,a=0,b=0,c=0,d=0,sigma=1,accuracy=1,N_steps=1):
     im1 = ndf.laplace(im0_1)
     
     # im1 = filt_gauss_laplace(proj[i, a:b, c:d], sigma)
-    im0_2 =  ndf.gaussian_filter(proj[i + N_steps*180, a:b, c:d], sigma)
+    im0_2 = ndf.gaussian_filter(proj[i + N_steps*180, a:b, c:d], sigma)
     im2 = np.flip(ndf.laplace(im0_2),1)
     
     # im2 = np.flip(filt_gauss_laplace(proj[i + N_steps*180, a:b, c:d], sigma),1)
