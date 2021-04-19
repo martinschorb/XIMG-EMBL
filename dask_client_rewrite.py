@@ -24,6 +24,9 @@ from maximus48.SSIM_131119 import SSIM_const
 from maximus48 import multiCTF2 as multiCTF
 
 
+from maximus48.tomo_proc3_parallel import rotaxis_rough
+
+
 from skimage.io import imread, imsave
 from scipy.ndimage import rotate
 
@@ -52,7 +55,7 @@ import tomopy
 
 
 
-# client = Client('10.11.12.87:38880')
+# client = Client('10.11.12.87:33797')
 
 #%%
 
@@ -314,67 +317,109 @@ from dask.array.image import imread
 
 cp_count = 96
 
-def xtomo_recon(folder_temp):
-    
-    imfiles = sorted(glob.glob(folder_temp+'*.tiff'))
-    
-    im = imread(imfiles[0])
-    
-    proj = np.zeros((3600,im.shape[0],im.shape[1]))
-    
-    for idx,imf in enumerate(imfiles):proj[idx,:]=imread(imf)
 
-    proj = tomopy.prep.stripe.remove_stripe_fw(proj,level=3, wname=u'db25', sigma=2, pad = False,ncore=cp_count,nchunk=chunksz)
+imfiles = sorted(glob.glob(folder_temp+'*.tiff'))
 
-    proj = rotate(proj, inclination, mode='nearest', axes=(2,1))
+im = imread(imfiles[0])
+
+proj = np.zeros((3600,im.shape[0],im.shape[1]))
+
+for idx,imf in enumerate(imfiles):proj[idx,:]=imread(imf)
+
+print('stripe removal\n\n================================\n\n')
+
+proj = tomopy.prep.stripe.remove_stripe_fw(proj,level=3, wname=u'db25', sigma=2, pad = False,ncore=cp_count,nchunk=chunksz)
+
+pshape = proj.shape
+
+stripe_file = folder_temp+'/stripe.npy'
+np.save(stripe_file,proj)
 
 
-    cent = rotscan(proj, N_steps,ncore=cp_count,nchunk=chunksz)
+def parallel_rotate(instack,i):
+    im = rotate(instack[i,:], inclination, mode='nearest')
+    imsave(os.path.join(folder_temp,'rotated_'+data_name+'_'+str(i).zfill(4)+'.tif'),im)
 
-    n = proj.shape[0]
 
-    angle = np.pi*np.arange(n)/(N_steps*180)
+projd = da.from_array(np.memmap(folder_temp+'stripe.npy',shape=pshape,mode='r'))
 
-    time1 = time.time()
-    outs = tomopy.recon(proj, angle, center = cent, algorithm = 'gridrec', filter_name = 'shepp',ncore=cp_count,nchunk=chunksz)
-    
-    outs = outs[:,Npad : outs.shape[1]- Npad,Npad : outs.shape[2]- Npad]
-    
-        
-    data = outs
-    data -= data.min()
-    data /= data.max()
-    data *= 32767
-    data = data.astype('int16')
-    outs = None
 
-    gc.collect()
+
+print('rotate\n\n================================\n\n')
+proj = rotate(proj, inclination, mode='nearest', axes=(2,1))
+
+pshape = proj.shape
+
+rot_file = folder_temp+'/rotate.npy'
+np.save(rot_file,proj)
+
+
+os.environ["TOMOPY_PYTHON_THREADS"]=str(cp_count)
+
+print('rotscan\n\n================================\n\n')
+# cent = rotscan(proj, N_steps,ncore=cp_count,nchunk=chunksz)
+
+
+# rotscan function....
+
+
+cent = rotaxis_rough(proj, N_steps)
+cent = np.median(cent)
+
+
+rotsc_file = folder_temp+'/rotscan.npy'
+np.save(rotsc_file,cent)
+
+
+n = proj.shape[0]
+
+angle = np.pi*np.arange(n)/(N_steps*180)
+
+time1 = time.time()
+
+
+print('reconstruct\n\n================================\n\n')
+
+outs = tomopy.recon(proj, angle, center = cent, algorithm = 'gridrec', filter_name = 'shepp',ncore=cp_count,nchunk=chunksz)
+
+outs = outs[:,Npad : outs.shape[1]- Npad,Npad : outs.shape[2]- Npad]
+
+
     
+data = outs
+data -= data.min()
+data /= data.max()
+data *= 32767
+data = data.astype('int16')
+outs = None
+
+gc.collect()
+
+
     
-        
-    # set the factors for downscaling, for example 2 times isotropic downsampling by a factor of 2
-    scale_factors = [[2, 2, 2], [2, 2, 2], [2, 2, 2], [2, 2, 2], [2, 2, 2]] 
-    
-    # set the downsampling mode, 'mean' is good for image data, for binary data or labels
-    # use 'nearest' instead
-    mode = 'interpolate'
-    
-    # resolution of the data, set appropriately
-    resolution = [pixel*1e6 , pixel*1e6 , pixel*1e6] 
-    
-    #save big data format
-    folder_h5 = folder_result + 'bdv/'
-    
-    if not os.path.exists(folder_h5):
-        os.makedirs(folder_h5) 
-    
-    
-    # t=dask.delayed(make_bdv)(data, folder_h5 + data_name, downscale_factors=scale_factors,
-    #     ...:                  downscale_mode=mode, resolution=resolution,
-    #     ...:                  unit='micrometer', setup_name = data_name)    
-    
-    # AssertionError: daemonic processes are not allowed to have children
-    
-    make_bdv(data, folder_h5 + data_name, downscale_factors=scale_factors,
-                     downscale_mode=mode, resolution=resolution,
-                     unit='micrometer', setup_name = data_name,n_threads=cp_count) 
+# set the factors for downscaling, for example 2 times isotropic downsampling by a factor of 2
+scale_factors = [[2, 2, 2], [2, 2, 2], [2, 2, 2], [2, 2, 2], [2, 2, 2]] 
+
+# set the downsampling mode, 'mean' is good for image data, for binary data or labels
+# use 'nearest' instead
+mode = 'interpolate'
+
+# resolution of the data, set appropriately
+resolution = [pixel*1e6 , pixel*1e6 , pixel*1e6] 
+
+#save big data format
+folder_h5 = folder_result + 'bdv/'
+
+if not os.path.exists(folder_h5):
+    os.makedirs(folder_h5) 
+
+
+# t=dask.delayed(make_bdv)(data, folder_h5 + data_name, downscale_factors=scale_factors,
+#     ...:                  downscale_mode=mode, resolution=resolution,
+#     ...:                  unit='micrometer', setup_name = data_name)    
+
+# AssertionError: daemonic processes are not allowed to have children
+
+make_bdv(data, folder_h5 + data_name, downscale_factors=scale_factors,
+                 downscale_mode=mode, resolution=resolution,
+                 unit='micrometer', setup_name = data_name,n_threads=cp_count) 
