@@ -28,7 +28,8 @@ from maximus48.tomo_proc3_parallel import rotaxis_rough
 
 
 from skimage.io import imread, imsave
-from scipy.ndimage import rotate
+# from scipy.ndimage import rotate
+from maximus48.tomo_proc3_parallel import rotate
 
 from pybdv import make_bdv 
 
@@ -335,23 +336,15 @@ pshape = proj.shape
 stripe_file = folder_temp+'/stripe.npy'
 np.save(stripe_file,proj)
 
-
-def parallel_rotate(instack,i):
-    im = rotate(instack[i,:], inclination, mode='nearest')
-    imsave(os.path.join(folder_temp,'rotated_'+data_name+'_'+str(i).zfill(4)+'.tif'),im)
-
-
 projd = da.from_array(np.memmap(folder_temp+'stripe.npy',shape=pshape,mode='r'))
 
 
-
 print('rotate\n\n================================\n\n')
-proj = rotate(proj, inclination, mode='nearest', axes=(2,1))
+proj2 = rotate(projd, inclination, mode='nearest', axes=(2,1))
 
-pshape = proj.shape
+pshape = proj2.shape
 
-rot_file = folder_temp+'/rotate.npy'
-np.save(rot_file,proj)
+rot_file = folder_temp+'/rotate.zarr'
 
 
 os.environ["TOMOPY_PYTHON_THREADS"]=str(cp_count)
