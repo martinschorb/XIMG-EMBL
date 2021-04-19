@@ -24,17 +24,17 @@ from maximus48.SSIM_131119 import SSIM_const
 from maximus48 import multiCTF2 as multiCTF
 
 
-from maximus48.tomo_proc3_parallel import rotaxis_rough
+# from maximus48.tomo_proc3_parallel import rotaxis_rough
 
 
 from skimage.io import imread, imsave
 # from scipy.ndimage import rotate
-from maximus48.tomo_proc3_parallel import rotate
+from maximus48.tomo_proc3_parallel import rotate,rotrough_compute
 
 from pybdv import make_bdv 
 
 from dask import delayed
-# import dask.array as da
+import dask.array as da
 
 from dask.distributed import Client, progress
 
@@ -355,6 +355,17 @@ print('rotscan\n\n================================\n\n')
 
 # rotscan function....
 
+
+a = proj.shape[1]//4
+b = 3 * proj.shape[1]//4
+c = proj.shape[2]//4
+d = 3 * proj.shape[2]//4
+    
+cent = []
+N_rot = proj.shape[0] - 180 * N_steps
+
+sigma = 5
+accuracy = 100
 
 cent = rotaxis_rough(proj, N_steps)
 cent = np.median(cent)
