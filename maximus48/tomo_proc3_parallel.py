@@ -23,7 +23,7 @@ from scipy import special
 import itertools
 
 
-from dask_image.ndimage import affine_transform
+from dask_image.ndinterp import affine_transform
 from scipy.ndimage.interpolation import _ni_support
  
 """
