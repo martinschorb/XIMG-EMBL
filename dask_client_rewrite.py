@@ -344,10 +344,16 @@ proj2 = rotate(projd, inclination, mode='nearest', axes=(2,1))
 
 pshape = proj2.shape
 
+
+
+
+
+
+
 rot_file = folder_temp+'/rotate.zarr'
 
 
-os.environ["TOMOPY_PYTHON_THREADS"]=str(cp_count)
+# os.environ["TOMOPY_PYTHON_THREADS"]=str(cp_count)
 
 print('rotscan\n\n================================\n\n')
 # cent = rotscan(proj, N_steps,ncore=cp_count,nchunk=chunksz)
@@ -366,6 +372,14 @@ N_rot = proj.shape[0] - 180 * N_steps
 
 sigma = 5
 accuracy = 100
+
+
+
+
+
+
+
+
 
 cent = rotaxis_rough(proj, N_steps)
 cent = np.median(cent)

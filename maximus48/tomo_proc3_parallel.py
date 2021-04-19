@@ -102,7 +102,7 @@ def rotaxis_rough(proj,i, N_steps = 10):
     return proj[i].shape[1]/2 + distances[1]/2 #cent
 
 
-def rotrough_compute(proj,i,**kwargs):#a=a,b=b,c=c,d=d,sigma=sigma,accuracy=accuracy,N_steps=N_steps):
+def rotrough_compute(proj,i,a=0,b=0,c=0,d=0,sigma=1,accuracy=1,N_steps=1):
     
     # rotrough_compute(proj,i,a=a,b=b,c=c,d=d,sigma=sigma,accuracy=accuracy,N_steps=N_steps):
     
