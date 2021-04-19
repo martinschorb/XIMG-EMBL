@@ -16,7 +16,7 @@ import tomopy
 import numpy as np
 from multiprocessing import Array
 from maximus48.var import shift_distance as shift
-from maximus48.var import filt_gauss_laplace
+# from maximus48.var import filt_gauss_laplace
 from skimage.transform import rescale
 from numpy.fft import fft2, fftshift
 from scipy import special
@@ -25,7 +25,9 @@ import itertools
 
 import dask.array as da
 from dask_image.ndinterp import affine_transform
-from scipy.ndimage.interpolation import _ni_support
+from dask_image import ndfilters as ndf
+
+# from scipy.ndimage.interpolation import _ni_support
 
 
 
@@ -100,6 +102,20 @@ def rotaxis_rough(proj,i, N_steps = 10):
     return proj[i].shape[1]/2 + distances[1]/2 #cent
 
 
+def rotrough_compute(proj,i,a=a,b=b,c=c,d=d,sigma=sigma,accuracy=accuracy,N_steps=N_steps):
+    im0_1 =  ndf.gaussian_filter(proj[i, a:b, c:d], sigma)
+    im1 = ndf.laplace(im0_1)
+    
+    # im1 = filt_gauss_laplace(proj[i, a:b, c:d], sigma)
+    im0_2 =  ndf.gaussian_filter(proj[i + N_steps*180, a:b, c:d], sigma)
+    im2 = np.flip(ndf.laplace(im0_2),1)
+    
+    # im2 = np.flip(filt_gauss_laplace(proj[i + N_steps*180, a:b, c:d], sigma),1)
+    
+    distances = shift(im1.compute(), im2.compute() , accuracy)  
+    return proj[i].shape[1]/2 + distances[1]/2
+    
+
 def rotaxis_rough_filt(proj, N_steps = 10, sigma = 5, accuracy = 10):
     """calculate the rotation axis comparing 0 and 180 projection shift
     
@@ -118,9 +134,17 @@ def rotaxis_rough_filt(proj, N_steps = 10, sigma = 5, accuracy = 10):
     N_rot = proj.shape[0] - 180 * N_steps
     
     for i in range(N_rot):
-        im1 = filt_gauss_laplace(proj[i, a:b, c:d], sigma)
-        im2 = np.flip(filt_gauss_laplace(proj[i + N_steps*180, a:b, c:d], sigma),1)
-        distances = shift(im1, im2 , accuracy)
+        
+        im0_1 =  ndf.gaussian_filter(proj[i, a:b, c:d], sigma)
+        im1 = ndf.laplace(im0_1)
+        
+        # im1 = filt_gauss_laplace(proj[i, a:b, c:d], sigma)
+        im0_2 =  ndf.gaussian_filter(proj[i + N_steps*180, a:b, c:d], sigma)
+        im2 = np.flip(ndf.laplace(im0_2),1)
+        
+        # im2 = np.flip(filt_gauss_laplace(proj[i + N_steps*180, a:b, c:d], sigma),1)
+        
+        distances = shift(im1.compute(), im2.compute() , accuracy)
         cent.append(proj[i].shape[1]/2 + distances[1]/2)
     return cent
 

@@ -147,6 +147,6 @@ def shift_distance(image1, image2, accuracy = 100):
         Shift vector (in pixels) required to register target_image with src_image. 
         Axis ordering is consistent with numpy (e.g. Z, Y, X)
     """
-    shift, error, diffphase = skimage.feature.register_translation(image1, image2, accuracy)
+    shift, error, diffphase = skimage.registration.phase_cross_correlation(image1, image2, upsample_factor=accuracy)
     return shift
 
