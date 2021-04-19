@@ -23,9 +23,12 @@ from scipy import special
 import itertools
 
 
+import dask.array as da
 from dask_image.ndinterp import affine_transform
 from scipy.ndimage.interpolation import _ni_support
- 
+
+
+
 """
 I wanted to make clases F and Processor as light as possible for parallel processing 
 so, in a sence, I use them almost as fast dictionaries
@@ -500,7 +503,7 @@ def rotate(input, angle, axes=(1, 0), reshape=True, output=None, order=3,
     (724, 724)
 
     """
-    input_arr = np.asarray(input)
+    input_arr = input#np.asarray(input)
     ndim = input_arr.ndim
 
     if ndim < 2:
@@ -548,9 +551,11 @@ def rotate(input, angle, axes=(1, 0), reshape=True, output=None, order=3,
     output_shape[axes] = out_plane_shape
     output_shape = tuple(output_shape)
 
-    complex_output = np.iscomplexobj(input_arr)
-    output = _ni_support._get_output(output, input_arr, shape=output_shape,
-                                     complex_output=complex_output)
+    # complex_output = np.iscomplexobj(input_arr)
+    # output = _ni_support._get_output(output, input_arr, shape=output_shape,
+    #                                   complex_output=complex_output)
+
+    output = da.zeros(output_shape)
 
     if ndim <= 2:
         affine_transform(input_arr, rot_matrix, offset=offset, output_shape=out_plane_shape,
