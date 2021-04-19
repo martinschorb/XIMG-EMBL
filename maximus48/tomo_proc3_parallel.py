@@ -553,8 +553,8 @@ def rotate(input, angle, axes=(1, 0), reshape=True, output=None, order=3,
                                      complex_output=complex_output)
 
     if ndim <= 2:
-        affine_transform(input_arr, rot_matrix, offset, output_shape, output,
-                         order, mode, cval, prefilter)
+        affine_transform(input_arr, rot_matrix, offset=offset, output_shape=out_plane_shape,
+                             order=order, mode=mode, cval=cval,prefilter=False)
     else:
         # If ndim > 2, the rotation is applied over all the planes
         # parallel to axes
@@ -567,8 +567,8 @@ def rotate(input, angle, axes=(1, 0), reshape=True, output=None, order=3,
         for coordinates in planes_coord:
             ia = input_arr[coordinates]
             oa = output[coordinates]
-            affine_transform(ia, rot_matrix, offset, out_plane_shape,
-                             oa, order, mode, cval, prefilter)
+            affine_transform(ia, rot_matrix, offset=offset, output_shape=out_plane_shape,
+                             output=oa, order=order, mode=mode, cval=cval,prefilter=False)
 
     return output
 
