@@ -19,22 +19,22 @@ import os
 
 
 
-worker_cpu = 2
+worker_cpu = 12
 
-workers_per_job = 12
+workers_per_job = 5
 
 
 cluster = SLURMCluster(
     cores=worker_cpu * workers_per_job,
     processes=workers_per_job,
-    memory="32GB",
+    memory="240GB",
     shebang='#!/usr/bin/env bash',
-    walltime="01:30:00",
+    walltime="00:30:00",
     local_directory='/tmp',
     death_timeout="15s")
 
 
-maxnodes = 30
+maxnodes = 8
 
 ca = cluster.adapt(
     minimum = workers_per_job, maximum=maxnodes * workers_per_job,
