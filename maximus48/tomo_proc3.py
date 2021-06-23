@@ -264,6 +264,37 @@ def rotscan(proj, N_steps, slice_mode = False):
     # calculate tilt of the rotation axis
     # counter-clockwise rotation of the rotaxis => positive angles
     pfit = np.polyfit(list_to_scan, rotslice, 1)
+    
+    # find outliers
+    
+    diffs = []
+    for ix,x in enumerate(list_to_scan):
+        diffs.append(np.abs(pfit[0]*x+pfit[1]-rotslice[ix]))
+    
+    pfs=[]
+    l1o_diffs=[]
+    
+    if np.mean(diffs)>1:
+        # leave one out
+        for ix,x in enumerate(list_to_scan):
+            l2s2 = list(list_to_scan)
+            l2s2.remove(x)
+            rotsl2 = rotslice.copy()
+            rotsl2.pop(ix)
+            
+            pf = np.polyfit(l2s2, rotsl2, 1)
+    
+            # find outliers
+    
+            diffs = []
+            for ix,x in enumerate(l2s2):
+                diffs.append(np.abs(pf[0]*x+pf[1]-rotsl2[ix]))
+                
+            l1o_diffs.append(np.mean(diffs))
+            pfs.append(pf)
+            
+        pfit = pfs[np.argmin(l1o_diffs)]
+    
     inclination = (-np.arctan(pfit[0]*180/np.pi))
     
     if slice_mode:
